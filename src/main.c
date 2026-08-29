@@ -3,25 +3,40 @@
 #include <stdlib.h>
 #include <string.h>
 
+void read_line(char **line, size_t *line_size) {
+    ssize_t nread;
+
+    nread = getline(line , line_size, stdin);
+
+    if(nread == -1) {
+        free(*line);
+        *line = NULL;
+
+        if(feof(stdin)) {
+            exit(EXIT_SUCCESS);
+        } else {
+            perror("Read line");
+            exit(EXIT_FAILURE);
+        }
+    }
+}
+
 int main(int argc, char **argv) {
 
     char *line = NULL;
     size_t line_size = 0;
-    ssize_t nread;
 
 
 
     while(1) {
         printf("> ");
-        nread = getline(&line , &line_size, stdin);
+        fflush(stdout);
+        
+        read_line(&line, &line_size);
 
-        if(nread == -1) {
-            free(line);
-            return EXIT_FAILURE;
-        }
 
         if(strcmp(line, "exit\n") == 0) {
-            printf("Exitting");
+            printf("Exiting");
             break;
         }
 
