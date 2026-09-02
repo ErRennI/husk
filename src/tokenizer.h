@@ -14,18 +14,18 @@ typedef enum {
 
 typedef struct {
     token_types_t token_type;
-    char * value;
+    char *value;
 } token_t;
 
 typedef struct {
     token_t *tokens;
     size_t num_tokens;
-    char *line;
+    const char *line;
     size_t current;
     size_t line_length;
     size_t start;
 } tokenizer_state_t;
 
-void tokenize_line(const char *line, tokenizer_state_t *state);
+void tokenize_line(const char *line, size_t line_length,tokenizer_state_t *state);
 
 #endif
