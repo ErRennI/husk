@@ -20,6 +20,7 @@ typedef struct {
 typedef struct {
     token_t *tokens;
     size_t num_tokens;
+    size_t capacity;
     const char *line;
     size_t current;
     size_t line_length;

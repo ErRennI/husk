@@ -39,25 +39,28 @@ int main(int argc, char **argv) {
     tokenizer_state_t state;
     state.num_tokens = 0;
     state.tokens = NULL;
+    state.capacity = 0;
 
 
     while(1) {
         printf("> ");
         fflush(stdout);
-        
+
         line_length = read_line(&line, &line_size);
         tokenize_line(line, line_length, &state);
-
-
 
         if(strcmp(line, "exit") == 0) {
             printf("Exiting");
             break;
         }
-
     }
 
-    //TOKEN FREE
+    for (size_t i = 0; i < state.num_tokens; i++) {
+        free(state.tokens[i].value);
+    }
+    free(state.tokens);
+    state.tokens = NULL;
+    state.num_tokens = 0;
     free(line);
     return EXIT_SUCCESS;
 }
