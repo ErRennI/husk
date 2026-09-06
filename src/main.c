@@ -30,7 +30,7 @@ ssize_t read_line(char **line, size_t *line_size) {
     return nread;
 }
 
-int main(int argc, char **argv) {
+int main(void) {
 
     char *line = NULL;
     size_t line_size = 0;
@@ -47,10 +47,14 @@ int main(int argc, char **argv) {
         fflush(stdout);
 
         line_length = read_line(&line, &line_size);
-        tokenize_line(line, line_length, &state);
+
+        if(!tokenize_line(line, line_length, &state)) {
+            fprintf(stderr, "syntax error: unterminated quote\n");
+            continue;
+        }
 
         if(strcmp(line, "exit") == 0) {
-            printf("Exiting");
+            puts("Exiting");
             break;
         }
     }

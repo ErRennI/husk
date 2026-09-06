@@ -14,7 +14,7 @@ all: $(TARGET)
 $(TARGET): $(OBJ) | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -o $@ $(OBJ)
 
-# Compile each .c into build/*.o, creating build/ first if needed 
+# Compile each .c into build/*.o, creating build/ first if needed
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
@@ -26,5 +26,12 @@ clean:
 
 run: $(TARGET)
 	./$(TARGET)
+
+valgrind: $(TARGET)
+	valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --log-file=$(BUILD_DIR)/valgrind.log ./$(TARGET)
+	@echo "Valgrind log: $(BUILD_DIR)/valgrind.log"
+
+gdb: $(TARGET)
+	gdb ./$(TARGET)
 
 .PHONY: all clean run

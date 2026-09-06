@@ -1,16 +1,28 @@
 #ifndef TOKENIZER_H
 #define TOKENIZER_H
 
+#include <stdbool.h>
 #include <stddef.h>
+
 typedef enum {
     LESS,
+    HEREDOC,
     GREATER,
     GREATERGREATER,
-    HEREDOC,
     SEMICOLON,
     PIPE,
+    PIPEPIPE,
+    AND_AND,
+    AND,
+    AMPERSAND,
     WORD
 } token_types_t;
+
+typedef enum {
+    MODE_NORMAL,
+    MODE_IN_SINGLE_QUOTE,
+    MODE_IN_DOUBLE_QUOTE
+} tokenizer_mode_t;
 
 typedef struct {
     token_types_t token_type;
@@ -18,6 +30,7 @@ typedef struct {
 } token_t;
 
 typedef struct {
+    tokenizer_mode_t tokenizer_mode;
     token_t *tokens;
     size_t num_tokens;
     size_t capacity;
@@ -27,6 +40,6 @@ typedef struct {
     size_t start;
 } tokenizer_state_t;
 
-void tokenize_line(const char *line, size_t line_length,tokenizer_state_t *state);
+bool tokenize_line(const char *line, size_t line_length,tokenizer_state_t *state);
 
 #endif
