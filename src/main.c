@@ -36,11 +36,7 @@ int main(void) {
     size_t line_size = 0;
     ssize_t line_length;
 
-    tokenizer_state_t state;
-    state.num_tokens = 0;
-    state.tokens = NULL;
-    state.capacity = 0;
-
+    tokenizer_state_t state = {0};
 
     while(1) {
         printf("> ");
