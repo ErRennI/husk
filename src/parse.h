@@ -20,6 +20,7 @@ typedef struct ast_node {
     struct ast_node *right;
 } ast_node_t;
 
+void free_ast(ast_node_t *node);
 ast_node_t *parse_tokens(const token_t *tokens, size_t num_tokens);
 
 #endif

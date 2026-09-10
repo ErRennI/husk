@@ -11,9 +11,8 @@ typedef enum {
     GREATERGREATER,
     SEMICOLON,
     PIPE,
-    PIPEPIPE,
+    OR_OR,
     AND_AND,
-    AND,
     AMPERSAND,
     WORD
 } token_types_t;

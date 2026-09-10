@@ -1,4 +1,5 @@
 #define _POSIX_C_SOURCE 200809L
+#include "parse.h"
 #include "tokenizer.h"
 #include <stddef.h>
 #include <stdio.h>
@@ -49,10 +50,14 @@ int main(void) {
             continue;
         }
 
-        if(strcmp(line, "exit") == 0) {
-            puts("Exiting");
-            break;
+        ast_node_t *ast = parse_tokens(state.tokens, state.num_tokens);
+        if(!ast) {
+            fprintf(stderr, "syntax error\n");
+            continue;
         }
+
+        free_ast(ast);
+        ast = NULL;
     }
 
     for (size_t i = 0; i < state.num_tokens; i++) {

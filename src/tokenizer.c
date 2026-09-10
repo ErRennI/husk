@@ -24,7 +24,7 @@ static bool is_special_char(const tokenizer_state_t *state,char c, token_types_t
     const char next_c = (state->current + 1 < state->line_length) ? state->line[state->current + 1] : '\0';
     switch (c) {
         case '|':
-            return check_double(next_c, '|', PIPEPIPE, PIPE, token_type, len);
+            return check_double(next_c, '|', OR_OR, PIPE, token_type, len);
         case '<':
             return check_double(next_c, '<', HEREDOC, LESS, token_type, len);
         case '>':
@@ -34,7 +34,7 @@ static bool is_special_char(const tokenizer_state_t *state,char c, token_types_t
             *len = 1;
             return true;
         case '&':
-            return check_double(next_c, '&', AND_AND, AND, token_type, len);
+            return check_double(next_c, '&', AND_AND, AMPERSAND, token_type, len);
         default:
             return false;
     }

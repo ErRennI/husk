@@ -32,7 +32,7 @@ static bool add_arg(arg_builder_t *builder, const char *value) {
         builder->capacity = new_cap;
     }
 
-    if(value == NULL) {
+    if(!value) {
         builder->argv[builder->argc] = NULL;
         return true;
     }
@@ -55,8 +55,8 @@ static void free_arg_builder(arg_builder_t *builder) {
     free(builder->argv);
 }
 
-static void free_ast(ast_node_t *node) {
-    if(node == NULL) {
+void free_ast(ast_node_t *node) {
+    if(!node) {
         return;
     }
     if(node->node_type == AST_NODE_COMMAND) {
@@ -115,7 +115,7 @@ static ast_node_t *parse_command(parser_state_t *p) {
 
 static ast_node_t *parse_pipe(parser_state_t *p) {
     ast_node_t *left = parse_command(p);
-    if(left == NULL) {
+    if(!left) {
         return NULL;
     }
 
@@ -123,7 +123,7 @@ static ast_node_t *parse_pipe(parser_state_t *p) {
         p->pos++;
 
         ast_node_t *right = parse_command(p);
-        if(right == NULL) {
+        if(!right) {
             free_ast(left);
             return NULL;
         }
@@ -147,4 +147,93 @@ static ast_node_t *parse_pipe(parser_state_t *p) {
     }
 
     return left;
+}
+
+static ast_node_t *parse_and_or(parser_state_t *p) {
+    ast_node_t *left = parse_pipe(p);
+    if(!left) {
+        return NULL;
+    }
+
+    while(p->pos < p->num_tokens && (p->tokens[p->pos].token_type == AND_AND || p->tokens[p->pos].token_type == OR_OR)) {
+        ast_node_type_t node_type = (p->tokens[p->pos].token_type == AND_AND) ? AST_NODE_AND : AST_NODE_OR;
+        p->pos++;
+
+        ast_node_t *right = parse_pipe(p);
+        if(!right) {
+            free_ast(left);
+            return NULL;
+        }
+
+        ast_node_t *new_node = malloc(sizeof(ast_node_t));
+        if(!new_node) {
+            perror("malloc");
+            free_ast(left);
+            free_ast(right);
+            return NULL;
+        }
+
+        *new_node = (ast_node_t){
+            .node_type = node_type,
+            .argv = NULL,
+            .left = left,
+            .right = right
+        };
+
+        left = new_node;
+    }
+
+    return left;
+}
+
+static ast_node_t *parse_sequence(parser_state_t *p) {
+    ast_node_t *left = parse_and_or(p);
+    if(!left) {
+        return NULL;
+    }
+
+    while(p->pos < p->num_tokens && p->tokens[p->pos].token_type == SEMICOLON) {
+        p->pos++;
+
+        ast_node_t *right = parse_and_or(p);
+        if(!right) {
+            free_ast(left);
+            return NULL;
+        }
+
+        ast_node_t *new_node = malloc(sizeof(ast_node_t));
+        if(!new_node) {
+            perror("malloc");
+            free_ast(left);
+            free_ast(right);
+            return NULL;
+        }
+
+        *new_node = (ast_node_t){
+            .node_type = AST_NODE_SEQUENCE,
+            .argv = NULL,
+            .left = left,
+            .right = right,
+        };
+
+        left = new_node;
+    }
+
+    return left;
+}
+
+ast_node_t *parse_tokens(const token_t *tokens, size_t num_tokens) {
+    parser_state_t p = {
+        .tokens = tokens,
+        .num_tokens = num_tokens,
+        .pos = 0,
+    };
+
+    ast_node_t *root = parse_sequence(&p);
+    if(root == NULL && p.pos != p.num_tokens) {
+        free_ast(root);
+        return NULL;
+    }
+
+    return root;
 }
