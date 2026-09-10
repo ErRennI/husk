@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 
 typedef struct {
     const token_t *tokens;
@@ -30,6 +31,12 @@ static bool add_arg(arg_builder_t *builder, const char *value) {
         builder->argv = args;
         builder->capacity = new_cap;
     }
+
+    if(value == NULL) {
+        builder->argv[builder->argc] = NULL;
+        return true;
+    }
+
     char *temp_val = strdup(value);
     if(!temp_val) {
         perror("strdup");
@@ -41,14 +48,103 @@ static bool add_arg(arg_builder_t *builder, const char *value) {
     return true;
 }
 
+static void free_arg_builder(arg_builder_t *builder) {
+    for (size_t i = 0; i < builder->argc; i++) {
+        free(builder->argv[i]);
+    }
+    free(builder->argv);
+}
+
+static void free_ast(ast_node_t *node) {
+    if(node == NULL) {
+        return;
+    }
+    if(node->node_type == AST_NODE_COMMAND) {
+        for(size_t i = 0; node->argv[i] != NULL; i++) {
+            free(node->argv[i]);
+            node->argv[i] = NULL;
+        }
+        free(node->argv);
+        free(node);
+    } else {
+        free_ast(node->left);
+        free_ast(node->right);
+        free(node);
+    }
+}
+
 static ast_node_t *parse_command(parser_state_t *p) {
     arg_builder_t arg_builder = {0};
 
     while(p->pos < p->num_tokens && p->tokens[p->pos].token_type == WORD) {
+        if(!add_arg(&arg_builder, p->tokens[p->pos].value)) {
+            free_arg_builder(&arg_builder);
+            return NULL;
+        }
+        p->pos++;
+    }
 
-
-
+    if(arg_builder.argc == 0) {
+        free_arg_builder(&arg_builder);
+        return NULL;
 
     }
 
+    if(!add_arg(&arg_builder, NULL)) {
+        free_arg_builder(&arg_builder);
+        return NULL;
+    }
+
+    ast_node_t *node = malloc(sizeof(ast_node_t));
+
+    if(!node) {
+        perror("malloc");
+        free_arg_builder(&arg_builder);
+        return NULL;
+    }
+
+    *node = (ast_node_t){
+        .node_type = AST_NODE_COMMAND,
+        .argv = arg_builder.argv,
+        .left = NULL,
+        .right = NULL,
+    };
+
+    return node;
+}
+
+static ast_node_t *parse_pipe(parser_state_t *p) {
+    ast_node_t *left = parse_command(p);
+    if(left == NULL) {
+        return NULL;
+    }
+
+    while(p->pos < p->num_tokens && p->tokens[p->pos].token_type == PIPE) {
+        p->pos++;
+
+        ast_node_t *right = parse_command(p);
+        if(right == NULL) {
+            free_ast(left);
+            return NULL;
+        }
+
+        ast_node_t *new_node = malloc(sizeof(ast_node_t));
+        if(!new_node) {
+            perror("malloc");
+            free_ast(left);
+            free_ast(right);
+            return NULL;
+        }
+
+        *new_node = (ast_node_t){
+            .node_type = AST_NODE_PIPE,
+            .argv = NULL,
+            .left = left,
+            .right = right,
+        };
+
+        left = new_node;
+    }
+
+    return left;
 }
