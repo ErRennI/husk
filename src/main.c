@@ -1,6 +1,7 @@
 #define _POSIX_C_SOURCE 200809L
 #include "parse.h"
 #include "tokenizer.h"
+#include "executor.h"
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -16,7 +17,7 @@ ssize_t read_line(char **line, size_t *line_size) {
         *line = NULL;
 
         if(feof(stdin)) {
-            exit(EXIT_SUCCESS);
+
         } else {
             perror("Read line");
             exit(EXIT_FAILURE);
@@ -44,6 +45,9 @@ int main(void) {
         fflush(stdout);
 
         line_length = read_line(&line, &line_size);
+        if (line_length == -1) {
+            break;
+        }
 
         if(!tokenize_line(line, line_length, &state)) {
             fprintf(stderr, "syntax error: unterminated quote\n");
@@ -55,6 +59,8 @@ int main(void) {
             fprintf(stderr, "syntax error\n");
             continue;
         }
+
+        int exit_code = execute_ast(ast);
 
         free_ast(ast);
         ast = NULL;
