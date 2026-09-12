@@ -19,6 +19,43 @@ typedef struct {
     size_t capacity;
 } arg_builder_t;
 
+typedef struct {
+    redirect_t *redirects;
+    size_t count;
+    size_t capacity;
+} redirect_builder_t;
+
+static bool add_redirect(redirect_builder_t *builder, redirect_type_t type, const char *filename) {
+    if (builder->count >= builder->capacity) {
+        size_t new_cap = builder->capacity ? builder->capacity * 2 : 4;
+        redirect_t *redirects = realloc(builder->redirects, new_cap * sizeof(redirect_t));
+        if (!redirects) {
+            perror("realloc");
+            return false;
+        }
+        builder->redirects = redirects;
+        builder->capacity = new_cap;
+    }
+
+    char *filename_copy = strdup(filename);
+    if (!filename_copy) {
+        perror("strdup");
+        return false;
+    }
+
+    builder->redirects[builder->count].type = type;
+    builder->redirects[builder->count].filename = filename_copy;
+    builder->count++;
+    return true;
+}
+
+static void free_redirect_builder(redirect_builder_t *builder) {
+    for (size_t i = 0; i < builder->count; i++) {
+        free(builder->redirects[i].filename);
+    }
+    free(builder->redirects);
+}
+
 static bool add_arg(arg_builder_t *builder, const char *value) {
     if(builder->argc >= builder->capacity) {
         size_t new_cap = builder->capacity ? builder->capacity * 2 : 8;
@@ -64,6 +101,10 @@ void free_ast(ast_node_t *node) {
             free(node->argv[i]);
             node->argv[i] = NULL;
         }
+        for(size_t i = 0; i < node->num_redirects; i++) {
+            free(node->redirects[i].filename);
+        }
+        free(node->redirects);
         free(node->argv);
         free(node);
     } else {
@@ -73,25 +114,56 @@ void free_ast(ast_node_t *node) {
     }
 }
 
+static bool is_command_token(token_types_t type) {
+    return type == WORD || type == LESS || type == GREATER || type == GREATERGREATER;
+}
+
 static ast_node_t *parse_command(parser_state_t *p) {
     arg_builder_t arg_builder = {0};
+    redirect_builder_t redirect_builder = {0};
 
-    while(p->pos < p->num_tokens && p->tokens[p->pos].token_type == WORD) {
-        if(!add_arg(&arg_builder, p->tokens[p->pos].value)) {
-            free_arg_builder(&arg_builder);
-            return NULL;
+    while(p->pos < p->num_tokens && is_command_token(p->tokens[p->pos].token_type)) {
+        if(p->tokens[p->pos].token_type == WORD) {
+            if(!add_arg(&arg_builder, p->tokens[p->pos].value)) {
+                free_arg_builder(&arg_builder);
+                return NULL;
+            }
+        } else {
+            redirect_type_t type;
+            if(p->tokens[p->pos].token_type == LESS) type = REDIRECT_IN;
+            else if (p->tokens[p->pos].token_type == GREATER) type = REDIRECT_OUT;
+            else type = REDIRECT_APPEND;
+
+            p->pos++;
+
+            if(p->pos >= p->num_tokens || p->tokens[p->pos].token_type != WORD) {
+                free_arg_builder(&arg_builder);
+                free_redirect_builder(&redirect_builder);
+                return NULL;
+            }
+
+            if(!add_redirect(&redirect_builder, type, p->tokens[p->pos].value)) {
+                free_arg_builder(&arg_builder);
+                free_redirect_builder(&redirect_builder);
+                return NULL;
+            }
+
+            p->pos++;
+            continue;
         }
         p->pos++;
     }
 
     if(arg_builder.argc == 0) {
         free_arg_builder(&arg_builder);
+        free_redirect_builder(&redirect_builder);
         return NULL;
 
     }
 
     if(!add_arg(&arg_builder, NULL)) {
         free_arg_builder(&arg_builder);
+        free_redirect_builder(&redirect_builder);
         return NULL;
     }
 
@@ -100,12 +172,15 @@ static ast_node_t *parse_command(parser_state_t *p) {
     if(!node) {
         perror("malloc");
         free_arg_builder(&arg_builder);
+        free_redirect_builder(&redirect_builder);
         return NULL;
     }
 
     *node = (ast_node_t){
         .node_type = AST_NODE_COMMAND,
         .argv = arg_builder.argv,
+        .redirects = redirect_builder.redirects,
+        .num_redirects = redirect_builder.count,
         .left = NULL,
         .right = NULL,
     };
