@@ -1,19 +1,41 @@
 #define _POSIX_C_SOURCE 200809L
 #include "parse.h"
 #include "executor.h"
+#include "builtins.h"
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/wait.h>
 #include <fcntl.h>
+#include <signal.h>
 
+static bool g_should_exit = false;
+static int g_exit_code = 0;
+
+bool shell_should_exit(void) {
+    return g_should_exit;
+}
+
+int shell_exit_code(void) {
+    return g_exit_code;
+}
+
+void shell_request_exit(int code) {
+    g_should_exit = true;
+    g_exit_code = code;
+}
 
 static int execute_command(const ast_node_t *node) {
+
+    if (is_builtin(node->argv[0])) {
+        return execute_builtin(node->argv);
+    }
+
     pid_t pid = fork();
     int status;
 
     if(pid == 0) {
-
+        signal(SIGINT, SIG_DFL);
         for(size_t i = 0; i < node->num_redirects; i++) {
             if(node->redirects[i].type == REDIRECT_IN) {
                 int fd = open(node->redirects[i].filename, O_RDONLY);
@@ -100,6 +122,7 @@ static int execute_pipe(const ast_node_t *node) {
         return -1;
     }
     if(pid1 == 0) {
+        signal(SIGINT, SIG_DFL);
         dup2(fd[1], STDOUT_FILENO);
         close(fd[0]);
         close(fd[1]);
@@ -113,6 +136,7 @@ static int execute_pipe(const ast_node_t *node) {
     }
 
     if(pid2 == 0) {
+        signal(SIGINT, SIG_DFL);
         dup2(fd[0], STDIN_FILENO);
         close(fd[0]);
         close(fd[1]);

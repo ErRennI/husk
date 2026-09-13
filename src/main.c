@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <signal.h>
 
 ssize_t read_line(char **line, size_t *line_size) {
     ssize_t nread;
@@ -40,6 +41,8 @@ int main(void) {
 
     tokenizer_state_t state = {0};
 
+    signal(SIGINT, SIG_IGN);
+
     while(1) {
         printf("> ");
         fflush(stdout);
@@ -54,16 +57,24 @@ int main(void) {
             continue;
         }
 
+        if (state.num_tokens == 0) {
+            continue;
+        }
+
         ast_node_t *ast = parse_tokens(state.tokens, state.num_tokens);
         if(!ast) {
             fprintf(stderr, "syntax error\n");
             continue;
         }
 
-        int exit_code = execute_ast(ast);
+        execute_ast(ast);
 
         free_ast(ast);
         ast = NULL;
+
+        if (shell_should_exit()) {
+            break;
+        }
     }
 
     for (size_t i = 0; i < state.num_tokens; i++) {
@@ -73,5 +84,5 @@ int main(void) {
     state.tokens = NULL;
     state.num_tokens = 0;
     free(line);
-    return EXIT_SUCCESS;
+    return shell_exit_code();
 }
