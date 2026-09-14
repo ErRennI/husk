@@ -109,7 +109,8 @@ static bool handle_quote_mode(tokenizer_state_t *state, const char quote_char) {
     char c = state->line[state->current];
 
     if(c == quote_char) {
-        add_tokens(state, WORD, &state->line[state->start], (state->current - state->start));
+        token_types_t type = (quote_char == '\'') ? WORD_LITERAL : WORD;
+        add_tokens(state, type, &state->line[state->start], (state->current - state->start));
         state->tokenizer_mode = MODE_NORMAL;
         state->current++;
         state->start = state->current;

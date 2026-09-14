@@ -14,7 +14,8 @@ typedef enum {
     OR_OR,
     AND_AND,
     AMPERSAND,
-    WORD
+    WORD,
+    WORD_LITERAL,
 } token_types_t;
 
 typedef enum {

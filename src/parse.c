@@ -25,6 +25,99 @@ typedef struct {
     size_t capacity;
 } redirect_builder_t;
 
+//VAR
+static bool append_to_result(char **result, size_t *len, size_t *capacity, const char *text, size_t text_len) {
+    if(text_len == 0) {
+        return true;
+    }
+
+    size_t needed = *len + text_len + 1;
+    if(needed > *capacity) {
+        size_t new_cap = *capacity ? *capacity * 2 : 16;
+        while(new_cap < needed) {
+            new_cap *= 2;
+        }
+        char *tmp = realloc(*result, new_cap);
+        if(!tmp) {
+            perror("realloc");
+            return false;
+        }
+        *result = tmp;
+        *capacity = new_cap;
+    }
+
+    memcpy(*result + *len, text, text_len);
+    *len += text_len;
+    (*result)[*len] = '\0';
+    return true;
+}
+
+static bool is_var_char(char c) {
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_';
+}
+
+static char *expand_word(const char *value) {
+    char *result = NULL;
+    size_t len = 0;
+    size_t capacity = 0;
+
+    size_t i = 0;
+    size_t value_len = strlen(value);
+
+    while(i < value_len) {
+        if(value[i] == '$') {
+            size_t j = i + 1;
+            while(j < value_len && is_var_char(value[j])) {
+                j++;
+            }
+
+            if(j == i + 1) {
+                if (!append_to_result(&result, &len, &capacity, "$", 1)) {
+                    free(result);
+                    return NULL;
+                }
+                i++;
+                continue;
+            }
+
+            char *var_name = strndup(&value[i + 1], j - (i + 1));
+            if(!var_name) {
+                perror("strndup");
+                free(result);
+                return NULL;
+            }
+
+            const char *env_value = getenv(var_name);
+            free(var_name);
+
+            if(env_value) {
+                if(!append_to_result(&result, &len, &capacity, env_value, strlen(env_value))) {
+                    free(result);
+                    return NULL;
+                }
+            }
+
+            i = j;
+        } else {
+            if(!append_to_result(&result, &len, &capacity, &value[i], 1)) {
+                free(result);
+                return NULL;
+            }
+            i++;
+        }
+    }
+
+    if(!result) {
+        result = strdup("");
+        if(!result) {
+            perror("strdup");
+            return NULL;
+        }
+    }
+
+    return result;
+}
+
 static bool add_redirect(redirect_builder_t *builder, redirect_type_t type, const char *filename) {
     if (builder->count >= builder->capacity) {
         size_t new_cap = builder->capacity ? builder->capacity * 2 : 4;
@@ -115,7 +208,7 @@ void free_ast(ast_node_t *node) {
 }
 
 static bool is_command_token(token_types_t type) {
-    return type == WORD || type == LESS || type == GREATER || type == GREATERGREATER;
+    return type == WORD || type == WORD_LITERAL || type == LESS || type == GREATER || type == GREATERGREATER;
 }
 
 static ast_node_t *parse_command(parser_state_t *p) {
@@ -124,8 +217,23 @@ static ast_node_t *parse_command(parser_state_t *p) {
 
     while(p->pos < p->num_tokens && is_command_token(p->tokens[p->pos].token_type)) {
         if(p->tokens[p->pos].token_type == WORD) {
+            char *expanded = expand_word(p->tokens[p->pos].value);
+            if(!expanded) {
+                free_arg_builder(&arg_builder);
+                free_redirect_builder(&redirect_builder);
+                return NULL;
+            }
+            bool ok = add_arg(&arg_builder, expanded);
+            free(expanded);
+            if(!ok) {
+                free_arg_builder(&arg_builder);
+                free_redirect_builder(&redirect_builder);
+                return NULL;
+            }
+        } else if(p->tokens[p->pos].token_type == WORD_LITERAL) {
             if(!add_arg(&arg_builder, p->tokens[p->pos].value)) {
                 free_arg_builder(&arg_builder);
+                free_redirect_builder(&redirect_builder);
                 return NULL;
             }
         } else {
@@ -136,13 +244,29 @@ static ast_node_t *parse_command(parser_state_t *p) {
 
             p->pos++;
 
-            if(p->pos >= p->num_tokens || p->tokens[p->pos].token_type != WORD) {
+            if(p->pos >= p->num_tokens || (p->tokens[p->pos].token_type != WORD && p->tokens[p->pos].token_type != WORD_LITERAL)) {
                 free_arg_builder(&arg_builder);
                 free_redirect_builder(&redirect_builder);
                 return NULL;
             }
 
-            if(!add_redirect(&redirect_builder, type, p->tokens[p->pos].value)) {
+            char *filename = p->tokens[p->pos].value;
+            char *expanded_filename = NULL;
+
+            if(p->tokens[p->pos].token_type == WORD) {
+                expanded_filename = expand_word(filename);
+                if(!expanded_filename) {
+                    free_arg_builder(&arg_builder);
+                    free_redirect_builder(&redirect_builder);
+                    return NULL;
+                }
+                filename = expanded_filename;
+            }
+
+            bool ok = add_redirect(&redirect_builder, type, filename);
+            free(expanded_filename);
+
+            if(!ok) {
                 free_arg_builder(&arg_builder);
                 free_redirect_builder(&redirect_builder);
                 return NULL;

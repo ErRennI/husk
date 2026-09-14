@@ -5,7 +5,18 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <limits.h>
 
+static int builtin_pwd(char **argv) {
+    (void)argv;
+    char buf[PATH_MAX];
+    if(getcwd(buf, sizeof(buf)) == NULL) {
+        perror("getcwd");
+        return -1;
+    }
+    printf("%s\n", buf);
+    return 0;
+}
 
 static int builtin_cd(char **argv) {
     const char *target;
@@ -36,7 +47,7 @@ static int builtin_exit(char **argv) {
 }
 
 bool is_builtin(const char *name) {
-    return strcmp(name, "cd") == 0 || strcmp(name, "exit") == 0;
+    return strcmp(name, "cd") == 0 || strcmp(name, "exit") == 0 || strcmp(name, "pwd") == 0;
 }
 
 int execute_builtin(char **argv) {
@@ -45,6 +56,9 @@ int execute_builtin(char **argv) {
     }
     if (strcmp(argv[0], "exit") == 0) {
         return builtin_exit(argv);
+    }
+    if (strcmp(argv[0], "pwd") == 0) {
+        return builtin_pwd(argv);
     }
     return -1;
 }

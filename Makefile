@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -std=c11 -D_POSIX_C_SOURCE=200809L -g -O0 # Change -00 to -02 for final version
+CFLAGS = -Wall -Wextra -std=c11 -D_POSIX_C_SOURCE=200809L -g -O2
 
 SRC_DIR = src
 BUILD_DIR = build
