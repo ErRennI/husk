@@ -37,4 +37,10 @@ valgrind: $(TARGET)
 gdb: $(TARGET)
 	gdb ./$(TARGET)
 
-.PHONY: all clean run
+VALGRIND_FLAGS = --quiet --leak-check=full --errors-for-leak-kinds=definite --error-exitcode=99 \
+                 --child-silent-after-fork=yes --run-libc-freeres=no
+
+test-valgrind: $(TARGET)
+	HUSK_WRAPPER="valgrind $(VALGRIND_FLAGS)" TIMEOUT_SECS=30 ./scripts/run_tests.sh $(TARGET)
+
+.PHONY: all clean run test-valgrind test

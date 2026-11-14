@@ -21,3 +21,9 @@ jobs:
 
       - name: Test
         run: make test
+
+      - name: Install Valgrind
+        run: sudo apt-get update && sudo apt-get install -y valgrind
+
+      - name: Test with Valgrind
+        run: make test-valgrind
