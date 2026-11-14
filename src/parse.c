@@ -214,15 +214,24 @@ static bool is_command_token(token_types_t type) {
 static ast_node_t *parse_command(parser_state_t *p) {
     arg_builder_t arg_builder = {0};
     redirect_builder_t redirect_builder = {0};
+    bool saw_word = false;
 
     while(p->pos < p->num_tokens && is_command_token(p->tokens[p->pos].token_type)) {
         if(p->tokens[p->pos].token_type == WORD) {
+            saw_word = true;
             char *expanded = expand_word(p->tokens[p->pos].value);
             if(!expanded) {
                 free_arg_builder(&arg_builder);
                 free_redirect_builder(&redirect_builder);
                 return NULL;
             }
+
+            if(expanded[0] == '\0' && !p->tokens[p->pos].quoted) {
+                free(expanded);
+                p->pos++;
+                continue;
+            }
+
             bool ok = add_arg(&arg_builder, expanded);
             free(expanded);
             if(!ok) {
@@ -231,6 +240,7 @@ static ast_node_t *parse_command(parser_state_t *p) {
                 return NULL;
             }
         } else if(p->tokens[p->pos].token_type == WORD_LITERAL) {
+            saw_word = true;
             if(!add_arg(&arg_builder, p->tokens[p->pos].value)) {
                 free_arg_builder(&arg_builder);
                 free_redirect_builder(&redirect_builder);
@@ -278,11 +288,10 @@ static ast_node_t *parse_command(parser_state_t *p) {
         p->pos++;
     }
 
-    if(arg_builder.argc == 0) {
-        free_arg_builder(&arg_builder);
-        free_redirect_builder(&redirect_builder);
-        return NULL;
-
+    if(arg_builder.argc == 0 && !saw_word) {                 // CHANGED (5)
+            free_arg_builder(&arg_builder);
+            free_redirect_builder(&redirect_builder);
+            return NULL;
     }
 
     if(!add_arg(&arg_builder, NULL)) {

@@ -27,6 +27,9 @@ clean:
 run: $(TARGET)
 	./$(TARGET)
 
+test: $(TARGET)
+	./scripts/run_tests.sh $(TARGET)
+
 valgrind: $(TARGET)
 	valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --log-file=$(BUILD_DIR)/valgrind.log ./$(TARGET)
 	@echo "Valgrind log: $(BUILD_DIR)/valgrind.log"

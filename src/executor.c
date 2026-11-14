@@ -27,10 +27,15 @@ void shell_request_exit(int code) {
 
 static int execute_command(const ast_node_t *node) {
 
+    if (node->argv[0] == NULL) {
+        return 0;
+    }
+
     if (is_builtin(node->argv[0])) {
         return execute_builtin(node->argv);
     }
 
+    fflush(stdout);
     pid_t pid = fork();
     int status;
 
@@ -41,7 +46,7 @@ static int execute_command(const ast_node_t *node) {
                 int fd = open(node->redirects[i].filename, O_RDONLY);
                 if(fd == -1) {
                     perror("open");
-                    exit(EXIT_FAILURE);
+                    _exit(EXIT_FAILURE);
                 }
                 dup2(fd, STDIN_FILENO);
                 close(fd);
@@ -49,7 +54,7 @@ static int execute_command(const ast_node_t *node) {
                 int fd = open(node->redirects[i].filename, O_WRONLY | O_CREAT | O_TRUNC, 0644);
                 if(fd == -1) {
                     perror("open");
-                    exit(EXIT_FAILURE);
+                    _exit(EXIT_FAILURE);
                 }
                 dup2(fd, STDOUT_FILENO);
                 close(fd);
@@ -57,7 +62,7 @@ static int execute_command(const ast_node_t *node) {
                 int fd = open(node->redirects[i].filename, O_WRONLY | O_CREAT | O_APPEND, 0644);
                 if(fd == -1) {
                     perror("open");
-                    exit(EXIT_FAILURE);
+                    _exit(EXIT_FAILURE);
                 }
                 dup2(fd, STDOUT_FILENO);
                 close(fd);
@@ -66,7 +71,7 @@ static int execute_command(const ast_node_t *node) {
 
         if(execvp(node->argv[0], node->argv) == -1) {
             perror("execvp");
-            exit(EXIT_FAILURE);
+            _exit(EXIT_FAILURE);
         }
     } else if (pid > 0) {
         waitpid(pid, &status, 0);
@@ -116,6 +121,7 @@ static int execute_pipe(const ast_node_t *node) {
         return -1;
     }
 
+    fflush(stdout);
     pid_t pid1 = fork();
     if(pid1 == -1) {
         perror("fork");
@@ -126,9 +132,12 @@ static int execute_pipe(const ast_node_t *node) {
         dup2(fd[1], STDOUT_FILENO);
         close(fd[0]);
         close(fd[1]);
-        exit(execute_ast(node->left));
+        int execute_code = execute_ast(node->left);
+        fflush(stdout);
+        _exit(execute_code);;
     }
 
+    fflush(stdout);
     pid_t pid2 = fork();
     if(pid2 == -1) {
         perror("fork");
@@ -140,7 +149,9 @@ static int execute_pipe(const ast_node_t *node) {
         dup2(fd[0], STDIN_FILENO);
         close(fd[0]);
         close(fd[1]);
-        exit(execute_ast(node->right));
+        int execute_code = execute_ast(node->right);
+        fflush(stdout);
+        _exit(execute_code);
     }
 
     close(fd[0]);

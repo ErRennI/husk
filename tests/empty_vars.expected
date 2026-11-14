@@ -1,0 +1,6 @@
+end
+ end
+a b
+empty-command-succeeds
+ quoted-empty-kept
+after

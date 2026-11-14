@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <signal.h>
+#include <unistd.h>
 
 ssize_t read_line(char **line, size_t *line_size) {
     ssize_t nread;
@@ -41,11 +42,15 @@ int main(void) {
 
     tokenizer_state_t state = {0};
 
+    bool is_terminal = isatty(STDIN_FILENO);
+
     signal(SIGINT, SIG_IGN);
 
     while(1) {
-        printf("> ");
-        fflush(stdout);
+        if(is_terminal == 1) {
+            printf("> ");
+            fflush(stdout);
+        }
 
         line_length = read_line(&line, &line_size);
         if (line_length == -1) {

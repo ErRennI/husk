@@ -51,7 +51,7 @@ static void reset_tokenizer(tokenizer_state_t *state) {
     state->start = 0;
 }
 
-static void add_tokens(tokenizer_state_t *state, token_types_t token_type, const char *value_start, size_t len) {
+static void add_tokens(tokenizer_state_t *state, token_types_t token_type, const char *value_start, size_t len, bool quoted) {
     if(state->num_tokens >= state->capacity) {
         size_t new_cap = state->capacity ? state->capacity * 2 : 8;
         token_t *tokens = realloc(state->tokens, new_cap * sizeof(token_t));
@@ -70,6 +70,7 @@ static void add_tokens(tokenizer_state_t *state, token_types_t token_type, const
 
     state->tokens[state->num_tokens].token_type = token_type;
     state->tokens[state->num_tokens].value = new_value;
+    state->tokens[state->num_tokens].quoted = quoted;
     state->num_tokens++;
 }
 
@@ -80,16 +81,16 @@ static bool handle_normal_mode(tokenizer_state_t *state) {
 
     if(c == ' ') {
         if(state->start < state->current) {
-            add_tokens(state, WORD, &state->line[state->start], (state->current - state->start));
+            add_tokens(state, WORD, &state->line[state->start], (state->current - state->start), false);
         }
         state->current++;
         state->start = state->current;
         return true;
     } else if(is_special_char(state, c, &special_token_type, &special_token_len)) {
         if(state->start < state->current) {
-            add_tokens(state, WORD, &state->line[state->start], (state->current - state->start));
+            add_tokens(state, WORD, &state->line[state->start], (state->current - state->start), false);
         }
-        add_tokens(state, special_token_type, &state->line[state->current], special_token_len);
+        add_tokens(state, special_token_type, &state->line[state->current], special_token_len, false);
         state->current += special_token_len;
         state->start = state->current;
         return true;
@@ -110,7 +111,7 @@ static bool handle_quote_mode(tokenizer_state_t *state, const char quote_char) {
 
     if(c == quote_char) {
         token_types_t type = (quote_char == '\'') ? WORD_LITERAL : WORD;
-        add_tokens(state, type, &state->line[state->start], (state->current - state->start));
+        add_tokens(state, type, &state->line[state->start], (state->current - state->start), true);
         state->tokenizer_mode = MODE_NORMAL;
         state->current++;
         state->start = state->current;
@@ -149,7 +150,7 @@ bool tokenize_line(const char *line, size_t line_length, tokenizer_state_t *stat
     }
 
     if(state->start < state->current) {
-        add_tokens(state, WORD, &state->line[state->start], (state->current - state->start));
+        add_tokens(state, WORD, &state->line[state->start], (state->current - state->start), false);
     }
 
     return true;
