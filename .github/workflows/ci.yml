@@ -27,3 +27,16 @@ jobs:
 
       - name: Test with Valgrind
         run: make test-valgrind
+
+  docker:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Build image
+        run: docker build -t husk .
+
+      - name: Smoke test image
+        run: echo "echo hello" | docker run --rm -i husk | grep -x hello
