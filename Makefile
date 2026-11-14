@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -std=c11 -D_POSIX_C_SOURCE=200809L -g -O2
+CFLAGS = -Wall -Wextra -std=c11 -D_POSIX_C_SOURCE=200809L -g -O2 $(EXTRA_CFLAGS)
 
 SRC_DIR = src
 BUILD_DIR = build
